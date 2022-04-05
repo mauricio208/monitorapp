@@ -13,49 +13,66 @@ function initializeHealthMonitoring() {
     };
   }
 
-  schedule.scheduleJob("*/30 * * * *", async function () {
-    const actualTime = Date.now();
-    try {
+  const checkLastPingJob = schedule.scheduleJob(
+    "*/30 * * * *",
+    async function () {
+      console.log("JOB RUNNING: checkLastPingJob");
+      const actualTime = Date.now();
+      try {
+        for (const appName of appsNames) {
+          const timeSinceLastPingToNow = Math.floor(
+            (actualTime - appsToCheck[appName].lastPing) / 1000
+          );
+          if (timeSinceLastPingToNow > 3600 * 1000) {
+            appsToCheck[appName].ok = false;
+            appsToCheck[appName].statusDesc = `More than ${Math.floor(
+              timeSinceLastPingToNow / 3600
+            )} hour since last ping`;
+            appsToCheck[appName].errorTime = actualTime;
+          } else {
+            appsToCheck[appName].ok = true;
+            appsToCheck[appName].statusDesc = "All OK";
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  );
+
+  const sendMessageAliveJob = schedule.scheduleJob(
+    "*/35 * * * *",
+    async function () {
+      console.log("JOB RUNNING: sendMessageAliveJob");
       for (const appName of appsNames) {
-        const timeSinceLastPingToNow = Math.floor(
-          (actualTime - appsToCheck[appName].lastPing) / 1000
-        );
-        if (timeSinceLastPingToNow > 3600 * 1000) {
-          appsToCheck[appName].ok = false;
-          appsToCheck[appName].statusDesc = `More than ${Math.floor(
-            timeSinceLastPingToNow / 3600
-          )} hour since last ping`;
-          appsToCheck[appName].errorTime = actualTime;
-        } else {
-          appsToCheck[appName].ok = true;
-          appsToCheck[appName].statusDesc = "All OK";
+        if (appsToCheck[appName].ok) {
+          await sendAlive(appName, appsToCheck[appName].lastPing);
         }
       }
-    } catch (error) {
-      console.log(error);
     }
-  });
+  );
 
-  schedule.scheduleJob("*/35 * * * *", async function () {
-    console.log(appsToCheck);
-    for (const appName of appsNames) {
-      if (appsToCheck[appName].ok) {
-        await sendAlive(appName, appsToCheck[appName].lastPing);
+  const sendMessageErrorJob = schedule.scheduleJob(
+    "*/1 * * * *",
+    async function () {
+      console.log("JOB RUNNING: sendMessageErrorJob");
+      for (const appName of appsNames) {
+        if (!appsToCheck[appName].ok) {
+          await sendError(
+            appName,
+            appsToCheck[appName].statusDesc,
+            appsToCheck[appName].errorTime
+          );
+        }
       }
     }
-  });
+  );
 
-  schedule.scheduleJob("*/1 * * * *", async function () {
-    for (const appName of appsNames) {
-      if (!appsToCheck[appName].ok) {
-        await sendError(
-          appName,
-          appsToCheck[appName].statusDesc,
-          appsToCheck[appName].errorTime
-        );
-      }
-    }
-  });
+  return {
+    checkLastPingJob,
+    sendMessageAliveJob,
+    sendMessageErrorJob,
+  };
 }
 
 function registerPing(appName) {

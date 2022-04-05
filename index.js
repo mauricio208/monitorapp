@@ -19,7 +19,12 @@ fastify.register(FastifyStatics, {
   prefix: "/public/", // optional: default '/'
 });
 
-initializeHealthMonitoring();
+const jobs = initializeHealthMonitoring();
+
+fastify.get("/jobs", async (request, reply) => {
+  const nextJobExecution = jobs.map((j) => j.next());
+  return JSON.stringify(nextJobExecution, null, 2);
+});
 
 fastify.post("/ping", async (request, reply) => {
   const { appName } = request.body;
