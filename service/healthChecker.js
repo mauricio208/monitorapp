@@ -1,5 +1,5 @@
 import * as schedule from "node-schedule";
-
+import { sendAlive, sendError } from "./slack.js";
 const appsNames = process.env.APPS.split(",").map((app) => app.trim());
 const appsToCheck = {};
 
@@ -7,9 +7,8 @@ function initializeHealthMonitoring() {
   for (const appName of appsNames) {
     appsToCheck[appName] = {
       lastPing: null,
-      lastCheck: null,
-      error: null,
-      ok: null,
+      errorTime: null,
+      ok: true,
       statusDesc: null,
     };
   }
@@ -21,16 +20,12 @@ function initializeHealthMonitoring() {
         const timeSinceLastPingToNow = Math.floor(
           (actualTime - appsToCheck[appName].lastPing) / 1000
         );
-        if (timeSinceLastPingToNow > 3600) {
+        if (timeSinceLastPingToNow > 3600 * 1000) {
           appsToCheck[appName].ok = false;
           appsToCheck[appName].statusDesc = `More than ${Math.floor(
             timeSinceLastPingToNow / 3600
           )} hour since last ping`;
-        } else if (error) {
-          appsToCheck[appName].ok = false;
-          appsToCheck[
-            appName
-          ].statusDesc = `Error reported:\n${appsToCheck[appName].error}`;
+          appsToCheck[appName].errorTime = actualTime;
         } else {
           appsToCheck[appName].ok = true;
           appsToCheck[appName].statusDesc = "All OK";
@@ -41,7 +36,26 @@ function initializeHealthMonitoring() {
     }
   });
 
-  schedule.scheduleJob("*/35 * * * *", async function () {});
+  schedule.scheduleJob("*/35 * * * *", async function () {
+    console.log(appsToCheck);
+    for (const appName of appsNames) {
+      if (appsToCheck[appName].ok) {
+        await sendAlive(appName, appsToCheck[appName].lastPing);
+      }
+    }
+  });
+
+  schedule.scheduleJob("*/1 * * * *", async function () {
+    for (const appName of appsNames) {
+      if (!appsToCheck[appName].ok) {
+        await sendError(
+          appName,
+          appsToCheck[appName].statusDesc,
+          appsToCheck[appName].errorTime
+        );
+      }
+    }
+  });
 }
 
 function registerPing(appName) {
@@ -49,7 +63,9 @@ function registerPing(appName) {
 }
 
 function registerError(appName, error) {
-  appsToCheck[appName].error = error;
+  appsToCheck[appName].ok = false;
+  appsToCheck[appName].statusDesc = error;
+  appsToCheck[appName].errorTime = Date.now();
 }
 
 export { initializeHealthMonitoring, registerPing, registerError };
