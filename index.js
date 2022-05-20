@@ -40,7 +40,7 @@ fastify.post("/error", async (request, reply) => {
   return "OK";
 });
 
-fastify.listen(3000, (err, address) => {
+fastify.listen(process.env.PORT || 3000, (err, address) => {
   if (err) throw err;
   // Server is now listening on ${address}
 });
