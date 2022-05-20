@@ -14,7 +14,7 @@ function initializeHealthMonitoring() {
   }
 
   const checkLastPingJob = schedule.scheduleJob(
-    "*/30 * * * *",
+    process.env.CHECK_LAST_PING_JOB,
     async function () {
       console.log("JOB RUNNING: checkLastPingJob");
       const actualTime = Date.now();
@@ -41,7 +41,7 @@ function initializeHealthMonitoring() {
   );
 
   const sendMessageAliveJob = schedule.scheduleJob(
-    "*/35 * * * *",
+    process.env.SEND_MESSAGE_ALIVE_JOB,
     async function () {
       console.log("JOB RUNNING: sendMessageAliveJob");
       for (const appName of appsNames) {
@@ -53,7 +53,7 @@ function initializeHealthMonitoring() {
   );
 
   const sendMessageErrorJob = schedule.scheduleJob(
-    "*/1 * * * *",
+    process.env.SEND_MESSAGE_ERROR_JOB,
     async function () {
       console.log("JOB RUNNING: sendMessageErrorJob");
       for (const appName of appsNames) {

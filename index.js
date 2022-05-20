@@ -22,7 +22,9 @@ fastify.register(FastifyStatics, {
 const jobs = initializeHealthMonitoring();
 
 fastify.get("/jobs", async (request, reply) => {
-  const nextJobExecution = jobs.map((j) => j.next());
+  const nextJobExecution = Object.keys(jobs).map(
+    (j) => new Object({ [j]: jobs[j].nextInvocation() })
+  );
   return JSON.stringify(nextJobExecution, null, 2);
 });
 
