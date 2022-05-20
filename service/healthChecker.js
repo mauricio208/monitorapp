@@ -8,7 +8,7 @@ function initializeHealthMonitoring() {
     appsToCheck[appName] = {
       lastPing: null,
       errorTime: null,
-      ok: true,
+      ok: null,
       statusDesc: null,
     };
   }
@@ -20,12 +20,18 @@ function initializeHealthMonitoring() {
       const actualTime = Date.now();
       try {
         for (const appName of appsNames) {
-          const timeSinceLastPingToNow = Math.floor(
-            (actualTime - appsToCheck[appName].lastPing) / 1000
-          );
-          if (timeSinceLastPingToNow > 3600 * 1000) {
+          if (appsToCheck[appName].lastPing === null) {
+            const firstPingNotFound = "HAVE NOT RECEIVE FIRST PING";
+            console.log(firstPingNotFound);
+            return firstPingNotFound;
+          }
+          const timeSinceLastPingToNow =
+            Math.round(actualTime / 1000) -
+            Math.round(appsToCheck[appName].lastPing / 1000);
+
+          if (timeSinceLastPingToNow > 3600) {
             appsToCheck[appName].ok = false;
-            appsToCheck[appName].statusDesc = `More than ${Math.floor(
+            appsToCheck[appName].statusDesc = `More than ${Math.round(
               timeSinceLastPingToNow / 3600
             )} hour since last ping`;
             appsToCheck[appName].errorTime = actualTime;
@@ -77,6 +83,7 @@ function initializeHealthMonitoring() {
 
 function registerPing(appName) {
   appsToCheck[appName].lastPing = Date.now();
+  appsToCheck[appName].ok = true;
 }
 
 function registerError(appName, error) {
